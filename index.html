@@ -2825,11 +2825,15 @@ function CamionesView({
   const [filtro, setFiltro] = useState("todos");
   const [tab, setTab] = useState("tracking");
   const chk = (id, t) => store["cam_" + id + "_" + t] || false;
-  const setChk = (id, t, v) => setStore(s => ({
-    ...s,
-    ["cam_" + id + "_" + t]: v
-  }));
-  const filtrados = filtro === "pendientes" ? CAMIONES_FULL.filter(c => !chk(c.id, "llegado")) : CAMIONES_FULL;
+  // "llegó" es verdadero si cualquiera de las dos llaves está activa
+  const isLlegado = (id) => store["llegada_ok_"+id] || store["cam_"+id+"_llegado"] || false;
+  const setChk = (id, t, v) => setStore(s => {
+    const extra = {};
+    // Al marcar llegado, sincronizar ambas llaves
+    if (t === "llegado") extra["llegada_ok_"+id] = v;
+    return { ...s, ["cam_" + id + "_" + t]: v, ...extra };
+  });
+  const filtrados = filtro === "pendientes" ? CAMIONES_FULL.filter(c => !isLlegado(c.id)) : CAMIONES_FULL;
   const byMes = {};
   filtrados.forEach(c => {
     if (!byMes[c.mes]) byMes[c.mes] = [];
@@ -2882,7 +2886,7 @@ function CamionesView({
       alignItems: "center",
       flexWrap: "wrap"
     }
-  }, [["todos", `Todos (${CAMIONES_FULL.length})`, "#7a6a55"], ["pendientes", `⏳ Pendientes (${CAMIONES_FULL.filter(c => !chk(c.id, "llegado")).length})`, "#c0392b"]].map(([f, l, c]) => /*#__PURE__*/React.createElement("button", {
+  }, [["todos", `Todos (${CAMIONES_FULL.length})`, "#7a6a55"], ["pendientes", `⏳ Pendientes (${CAMIONES_FULL.filter(c => !isLlegado(c.id)).length})`, "#c0392b"]].map(([f, l, c]) => /*#__PURE__*/React.createElement("button", {
     key: f,
     onClick: () => setFiltro(f),
     style: {
@@ -2926,7 +2930,7 @@ function CamionesView({
         gap: 8
       }
     }, cams.map(cam => {
-      const llegado = chk(cam.id, "llegado") || store["llegada_ok_"+cam.id] || false,
+      const llegado = isLlegado(cam.id),
         cargado = chk(cam.id, "cargado"),
         prog = chk(cam.id, "programado");
       const isPend = cam.pendiente && !llegado;
@@ -3043,7 +3047,7 @@ function CamionesView({
       }, /*#__PURE__*/React.createElement("input", {
         type: "checkbox",
         checked: chk(cam.id, t),
-        onChange: e => { setChk(cam.id, t, e.target.checked); if(t==="llegado"){ setStore(function(s){ var o={}; o["llegada_ok_"+cam.id]=e.target.checked; return Object.assign({},s,o); }); } }
+        onChange: e => { setChk(cam.id, t, e.target.checked); }
       }), l)), /*#__PURE__*/React.createElement("input", {
         type: "text",
         value: store["cam_" + cam.id + "_nota"] || "",
